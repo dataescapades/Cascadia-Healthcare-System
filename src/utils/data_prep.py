@@ -29,4 +29,7 @@ def binary_var_distribution(variables, df):
     plt.legend(title='Values')
     plt.show()
 
+    value_counts_df['percent_with_condition'] = (
+        value_counts_df[1] / (value_counts_df[0] + value_counts_df[1])) * 100
+
     return value_counts_df
