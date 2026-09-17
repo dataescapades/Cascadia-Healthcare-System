@@ -1,0 +1,32 @@
+name: health_analytics_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - ipykernel
+  # Database & Infrastructure
+  - sqlalchemy>=2.0
+  - psycopg2
+  - python-dotenv
+  - pydantic>=2.0
+  - pyyaml
+  # Core Data & Visuals
+  - pandas>=2.2
+  - numpy
+  - scipy
+  - matplotlib
+  - seaborn
+  - pyarrow
+  # Modeling & Analysis
+  - scikit-learn
+  - statsmodels
+  - lightgbm
+  - pmdarima
+  # Explainability
+  - shap
+  # Pip-specific packages & Local Editable Install
+  - pip
+  - pip:
+      - fairlearn
+      - -e .

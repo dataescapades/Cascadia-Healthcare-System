@@ -1,0 +1,57 @@
+# Credentials & Secrets
+.env
+.env.*
+!.env.example
+
+# Data Directories (structure preserved, data ignored)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/tableau_exports/*
+!data/tableau_exports/.gitkeep
+
+# Global data extensions (safety net)
+*.csv
+*.tsv
+*.parquet
+*.zip
+*.tar.gz
+
+# Python & Jupyter Caches
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# IDE & OS Artifacts
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+Thumbs.db
+[Dd]esktop.ini
+
+# Notes folder
+docs/notes/
+
+# Dynamic Outputs & Artifacts
+outputs/logs/*
+!outputs/logs/.gitkeep
+outputs/metrics/*
+!outputs/metrics/.gitkeep
+outputs/models/*
+!outputs/models/.gitkeep
+
+# Output binary formats
+*.pkl
+*.joblib
+*.pt
+*.onnx
+
+# Rendered / Executed Notebook Artifacts
+docs/executed_html/
+
+# Packaging & Builds
+*.egg-info/
+build/
+dist/
+*.egg

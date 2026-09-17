@@ -1,0 +1,9 @@
+{
+    "recommendations": [
+        "ms-toolsai.datawrangler",
+        "ms-toolsai.jupyter",
+        "ckolkman.vscode-postgres",
+        "ms-python.vscode-pylance",
+        "ms-python.python"
+    ]
+}
