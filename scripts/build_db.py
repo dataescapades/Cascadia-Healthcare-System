@@ -1,3 +1,19 @@
+"""
+scripts/build_db.py
+-------------------
+Builds the Cascadia PostgreSQL database and materializes the Gold analytical 
+cohort table from raw CMS DE-SynPUF claims.
+
+Executes sequential ELT migrations:
+  1. Creates target PostgreSQL database.
+  2. Executes Silver layer DDL (schemas, tables, indexes).
+  3. Ingests and cleans raw claims into Silver relational tables.
+  4. Materializes the Gold analytical cohort table for downstream modeling.
+
+Usage:
+    python scripts/build_db.py
+"""
+
 import os
 import subprocess
 import sys
