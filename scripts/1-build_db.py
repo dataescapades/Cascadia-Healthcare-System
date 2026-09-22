@@ -11,7 +11,7 @@ Executes sequential ELT migrations:
   4. Materializes the Gold analytical cohort table for downstream modeling.
 
 Usage:
-    python scripts/build_db.py
+    python scripts/1-build_db.py
 """
 
 import os
