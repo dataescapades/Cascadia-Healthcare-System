@@ -1,181 +1,142 @@
 # Cascadia Health System
-***Inpatient Readmissions: Preliminary Opportunity Assessment***
+## Inpatient 30-Day Readmission Analytics & Pipeline
 
-An enterprise clinical data science pipeline evaluating acute 30-day readmissions across Medicare beneficiaries. Built on the CMS De-identified Synthetic Public Use Files (DE-SynPUF), this repository models financial risk under a Medicare Shared Savings Program (MSSP) Accountable Care Organization (ACO) framework.
-
----
-
-## Scenario Overview
-
-*Note: This repository models an enterprise operational scenario using the CMS 2008–2010 Medicare De-Identified Synthetic Public Use Files (DE-SynPUF). All organizational structures, operational targets, and clinical workflows are simulated.*
-
-Cascadia Health System operates as a Medicare Shared Savings Program (MSSP) Accountable Care Organization (ACO) under a two-sided financial risk model. In this arrangement, acute 30-day all-cause readmissions function as direct expenditures against Cascadia’s assigned annual Medicare Part A benchmark (~$12,000 to $15,000 direct cost per index readmission). Unplanned readmissions directly deplete shared savings distributions and expose the health system to shared loss penalties.
-
-To mitigate financial exposure and improve patient transitions, Cascadia is evaluating investments in enhanced post-discharge care programs. This project delivers an analytical foundation to inform both executive budgetary planning and clinical care management triage:
-* **Macro Budgetary Allocation (Executive / Finance):** Longitudinal forecasting of readmission volume and Part A expenditure exposure to size investments and staffing for transitional care initiatives.
-* **Micro Clinical Triage (Bedside / Care Management):** Supervised risk stratification and comorbidity phenotyping to direct care coordinators toward high-probability patients and tailor follow-up interventions prior to discharge.
+A reproducible clinical data engineering pipeline and analytics mart evaluating acute 30-day all-cause readmissions across Medicare beneficiaries. Built on the CMS De-identified Synthetic Public Use Files (DE-SynPUF), this repository models institutional readmission exposure under a two-sided Medicare Shared Savings Program (MSSP) Accountable Care Organization (ACO) framework.
 
 ---
 
-## Project Architecture
+### Project Status: Phase 1 Shipped
+* **Phase 1: Database Architecture & Analytic Cohort Engineering** — **Complete**
+* **Phase 2: Feature Store & Clinical Code Grouping** — *In Progress*
+* **Phase 3: Risk Stratification, Time-Series Forecasting & Governance** — *Planned*
 
-Production analytical workflows require strict separation between exploratory prototyping and reproducible code execution. This codebase is decoupled into modular Python packages, ordered SQL scripts, and declarative configuration schemas orchestrated via CLI entry points.
+---
 
-### Engineering Standards & Experimental Rigor
+## Operational Context
 
-Coming from wet-lab biological research and intelligence analysis, my baseline expectation is reproducible science and clean data provenance. In clinical analytics, a model is only as dependable as the pipeline behind it.
+In a two-sided MSSP ACO arrangement, acute 30-day all-cause readmissions function as direct expenditures against the health system's annual Medicare Part A benchmark (averaging ~$12,000 to $15,000 per index readmission). Unplanned returns deplete shared savings distributions and expose the organization to shared loss penalties.
 
-I built this repository to avoid the "hidden state" and configuration drift common in loose data science workflows:
+This project models the analytical infrastructure required to support two distinct operational decision points:
+1. **Executive / Budgetary Planning:** Macro-level longitudinal forecasting of readmission volume and Part A expenditure exposure to allocate clinical care management budgets.
+2. **Follow-Up Care Management Triage:** Micro-level risk stratification at discharge to prioritize transitional care interventions for high-risk patients after they leave the acute setting.
 
-- **Modular Architecture (`src/`, `sql/`, `scripts/` vs. `notebooks/`):**  
-  Notebooks are used strictly as scratchpads for initial exploratory analysis. All production steps—database schema design, cohort creation, feature engineering, modeling, and evaluation—are decoupled into modular Python packages and ordered SQL scripts orchestrated via CLI entry points.
+---
 
-- **Proactive Config Controls (`model_configs/`):**  
-  Instead of digging through post-run logs to figure out why an experiment shifted, parameters are controlled upfront. Runs use a "Base-and-Delta" pattern via YAML anchors: a shared baseline defines global controls, and individual experiments specify only what changes. Pydantic schemas validate types and feature sets before execution so pipelines fail fast instead of breaking mid-run.
+## Gold Mart Summary & Cohort Validation
 
-- **End-to-End Methodological Lineage (`docs/`):**  
-  Treated like an operational laboratory notebook. It documents the analytical chain of custody across every phase: ELT design and clinical code grouping rationales, model specifications (time-series forecasting, predictive readmission triage, and unsupervised patient phenotyping), and bias audit protocols—ensuring clinical SMEs and technical auditors can trace every insight directly back to source claims.
+Phase 1 establishes the relational schema, ingests raw CMS files through a PostgreSQL Medallion architecture, and derives a consolidated encounter-level analytic mart (`cascadia_analytics.cohort_readmissions`). 
 
-- **Locked Environments (`pyproject.toml`, `environment.yaml`):**  
-  Strict dependency locking guarantees runs execute identically across environments without silent package breaks.
+The summary metrics below reflect the completed Phase 1 cohort derivation from CMS DE-SynPUF Sample 1 (2008–2010 claims):
+
+| Metric | Cohort Value | Operational Definition |
+| :--- | :--- | :--- |
+| **Total Inpatient Claim Lines** | `66,773` | Raw institutional Part A claims in Silver layer |
+| **Full Cohort: Consolidated Acute Episodes** | `64,552` | Distinct acute stays after running-max transfer collapse |
+| **Full Cohort: Unique Beneficiaries** | `37,779` | Distinct Medicare beneficiaries with an index admission |
+| **Full Cohort: Median Days to Readmission** | `88` | Time-to-event interval among all readmitted beneficiaries |
+| **Readmitted Cohort: Consolidated Acute Episodes** | `6,386 (~9.89%)` | Distinct acute stays of beneficiaries readmitted within 30 days of discharge |
+| **Readmitted Cohort: Unique Beneficiaries** | `5,054` | Distinct Medicare beneficiaries readmitted within 30 days of discharge |
+| **Readmitted Cohort: Median Days to Readmission** | `13` | Time-to-event interval among beneficiaries readmitted within 30 days of discharge |
+
+> Detailed data distribution checks, null-rate profiling, and table integrity audits are available in the validation notebooks:
+> `notebooks/1-database_validation/` (covering Inpatient Claims, Beneficiary Summaries, and the Gold Analytic Mart).
+
+---
+
+## Clinical Data Engineering & Analytical Hygiene
+
+Administrative claims data present structural challenges that compromise predictive modeling if treated like standard tabular data. Phase 1 implements strict safeguards to enforce clinical validity and prevent target leakage:
+
+* **Transfer & Episode Consolidation:** CMS claims frequently split continuous acute episodes across multiple billing lines or hospital-to-hospital transfers. The Gold cohort consolidates overlapping or adjacent stays using running-max discharge windows, preventing artificial inflation of readmission rates.
+* **Temporal Leakage Elimination ($Y-1$ Baseline Joins):** Chronic condition flags and annual reimbursement features are joined strictly from the *prior calendar year's* summary ($Y-1$). Contemporaneous joins introduce target leakage by encoding survival and late-diagnosed conditions into early index admissions. Baseline admissions in 2008 deliberately retain `NULL` histories rather than imputing artificial baselines.
+* **Continuous Interval Tracking:** Rather than imposing fixed 30-day binary targets early, intervals (`days_to_next_admission`, `days_since_previous_admission`) are calculated as continuous integer metrics. This preserves analytical flexibility for downstream multi-window modeling (e.g., 30, 60, 90 days).
+* **Declarative Configuration & Type Safety:** Analytical pipelines use Pydantic schemas to validate data contracts and configuration parameters prior to execution, avoiding runtime failures in downstream modeling runs.
+
+*For the complete schema definitions, SQL migration scripts, and clinical grouping rationales, see the [Stage 1 Methodology Dossier](docs/methodology/1-database.md).*
+
+---
+
+## Data Realities & Analytical Boundaries
+
+Administrative claims data differ fundamentally from electronic health records (EHR). While this pipeline models post-discharge triage and enterprise spend, several structural constraints shape the analytical design:
+
+* **Claims vs. Bedside Clinical EHR:** True inpatient bedside triage relies on rich, real-time EHR data (e.g., vital sign trajectories, lab panels, nursing acuity flowsheets) that do not exist in claims files. In their absence, this project uses secondary ICD-9 diagnostic codes and chronic condition flags as proxy risk indicators.
+* **Temporal Lag & Chronic Baselines:** Administrative claims are subject to adjudication runout and billing lag. To model a patient's pre-admission baseline without contemporaneous leakage, the pipeline joins Chronic Condition Warehouse (CCW) flags strictly from the prior calendar year ($Y-1$). This trades immediate visibility for strict temporal hygiene.
+* **Synthetic Artifacts (DE-SynPUF):** To protect beneficiary privacy, CMS introduces intentional perturbation and synthetic noise into DE-SynPUF. While encounter structures and financial totals mirror realistic distributions, clinical associations are synthetic and intended solely for pipeline prototyping and software evaluation.
+
+---
+## Technical Architecture & Pipeline Organization
+
+The pipeline enforces modularity, isolating ad-hoc exploration from production SQL transformations and Python orchestration.
+
+### Directory Layout
+
+    ├── environment.yaml            # Conda environment specification
+    ├── pyproject.toml              # Package dependencies and project metadata
+    ├── .env.example                # Template for local database credentials
+    ├── docs/
+    │   ├── assets/                 # Architecture and distribution diagrams
+    │   └── methodology/            # In-depth analytical dossiers and clinical rationales
+    ├── model_configs/              # Pydantic-validated YAML execution parameters
+    ├── notebooks/                  # EDA scratchpads and distribution profiling
+    ├── scripts/                    # CLI orchestrators for pipeline stages
+    ├── sql/                        # Schema DDL, indexing, and migration scripts
+    └── src/                        # Modular pipeline packages
+        ├── 1-database/             # Medallion DDL and cohort derivation logic
+        ├── 2-features/             # ICD-9 groupings, CCW flags, and utilization metrics
+        └── utils/                  # Shared database engines and logging utilities
 
 ### Mirrored Pipeline Stages
 
-To ensure seamless navigation and maintain an auditable analytical chain of custody, the repository enforces a mirrored stage numbering convention across execution entry points, modular logic, and methodology dossiers. As downstream modeling and governance stages are introduced, they follow this exact structure:
+To maintain an auditable analytical chain of custody, execution CLI scripts, modular source logic, and documentation follow a consistent stage structure:
 
-| Stage | Execution CLI (`scripts/`) | Production Logic (`src/`) | Methodology Dossier (`docs/`) | Exploratory Notebooks |
-| :--- | :--- | :--- | :--- | :--- |
-| **1. Database & Cohort** | `scripts/1-build_db.py` | `src/1-database/` | `docs/methodology/1-database.md` | `notebooks/1-database_validation/` |
-| **2. Feature Engineering** | `scripts/2-build_features.py` | `src/2-feature_engineering/` | `docs/methodology/2-feature_engineering.md` | `notebooks/2-feature_engineering/` |
-
-> **Navigation Rule:** For any pipeline stage **`N`**, the CLI orchestrator in `scripts/N_*` executes the modular logic defined in `src/N-*/`, while the corresponding dossier in `docs/methodology/N-*.md` serves as the operational lab notebook detailing clinical rationale, trade-offs, and validation diagnostics.
-
-
-### Repository Layout
-
-```text
-├── environment.yaml            # Conda environment specification
-├── pyproject.toml              # Build dependencies and package metadata
-├── .env                        # key/values for Postgres database connection
-├── data/                       # Datasets used throughout project
-├── docs/
-│   ├── assets/                 # Visuals used in documentation
-│   └── methodology/            # In-depth methodology discussions
-├── model_configs/              # Pydantic-validated YAML execution configs
-├── notebooks/                  # EDA scratchpads and distribution profiling
-├── outputs/                    # Pipeline run artifacts (logs, metrics, models)
-├── scripts/                    # CLI orchestrators of src subfolder files
-└── src/                        # Modular production code
-    └── utils/                  # Shared database engines and data prep utilities
-```
+| Stage | CLI Orchestrator | Production Logic | Methodology Dossier | Focus Area | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **1. Database & Cohort** | [`scripts/1-build_db.py`](scripts/1-build_db.py) | [`src/1-database/`](src/1-database/) | [`docs/methodology/1-database.md`](docs/methodology/1-database.md) | Medallion ingestion, cohort logic | **Complete** |
+| **2. Feature Store** | [`scripts/2-build_features.py`](scripts/2-build_features.py) | [`src/2-features/`](src/2-features/) | [`docs/methodology/2-features.md`](docs/methodology/2-features.md) | ICD-9 maps, CCW flags, utilization | *In Progress* |
+| **3a. Longitudinal Spend** | `scripts/3a-run_forecasting.py` | `src/models/3a-forecasting/` | `docs/methodology/3a-forecasting.md` | SARIMA expenditure trajectories | *Planned* |
+| **3b1. Bedside Risk Triage** | `scripts/3b1-run_risk_triage.py` | `src/models/3b1-risk_triage/` | `docs/methodology/3b1-risk_triage.md` | XGBoost 30-day classification & SHAP | *Planned* |
+| **3b2. Algorithmic Governance** | `scripts/3b2-audit_fairness.py` | `src/models/3b2-fairness/` | `docs/methodology/3b2-fairness.md` | Fairlearn disparity & subgroup parity | *Planned* |
+| **3c. Comorbidity Clustering** | `scripts/3c-run_phenotyping.py` | `src/models/3c-phenotyping/` | `docs/methodology/3c-phenotyping.md` | Hierarchical multimorbidity phenotyping | *Planned* |
 
 ---
 
-## Dataset & Data Handling
+## Analytical Roadmap
 
-### Data Provenance (CMS DE-SynPUF)
-This project uses the *CMS 2008–2010 Medicare De-Identified Synthetic Public Use Files (DE-SynPUF) Sample 1, linking multi-year beneficiary summaries (demographics, chronic conditions) with longitudinal inpatient claims (diagnoses, procedures, reimbursements).
+Downstream modeling addresses the dual operational challenges outlined above:
 
-### Database Architecture (Medallion Structure)
-The PostgreSQL database follows an ELT Medallion design prioritizing data fidelity—preserving raw structures to minimize early bias and avoid unverified assumptions:
-
-* **Bronze (Staging):** Ingests raw CSVs into untyped text tables matching CMS specs. Tables are dropped post-ingestion to conserve local storage while retaining source files for auditability.
-
-* **Silver (`cascadia_lake`):** Normalized, typed tables across claims and annual summaries. Missing values are strictly retained as `NULL`s (no synthetic defaults or premature imputation) to allow downstream feature pipelines to evaluate imputation trade-offs transparently.
-
-* **Gold (`cascadia_analytics`):** A consolidated, patient-encounter analytics mart. Deferring model-specific parameters to later stages, this layer transforms transactional billing lines into continuous clinical episodes.
-
-### Analytic Cohort Engineering
-Rather than hardcoding rigid targets early, the Gold layer (`src/1-database/03_readmission_cohort.sql`) constructs clean encounter units while eliminating temporal leakage:
-
-* **Episode & Transfer Consolidation:** Multiple claim segments and overlapping hospital transfers are merged into distinct acute stays using running-max discharge windows.
-
-* **Leakage-Free Baselines:** Chronic conditions and beneficiary features are joined strictly from the **prior year's** summary (2008 admissions intentionally retain `NULL`s to reflect true historical absence).
-
-* **Flexible Interval Metrics:** Features such as `days_to_next_admission` and `days_since_previous_admission` are engineered as continuous intervals rather than fixed binary cutoffs, preserving flexibility for multi-window analyses (30/60/90 days) downstream.
-
-> *For the complete schema DDL, episode windowing logic, and trade-off rationales, see [docs/methodology/01-database.md](docs/methodology/1-database.md).*
-
----
-
-## Modeling & Analysis Strategy
-The downstream analytical phase applies complementary quantitative methods to address budgetary, operational, and clinical questions. Detailed specifications, hypotheses, and diagnostic findings are documented in the respective methodology dossiers.
-
-### SARIMA (Readmission Expenditure Forecasting)
-
-**Status:** Planned — Dossier in development.
-
-**Objective:** Forecast monthly readmission volume and associated Part A financial debits to inform transitional care staffing and executive budget allocation.
-
-**Exploratory Focus:** Evaluating monthly versus quarterly aggregation windows; testing seasonal decomposition against baseline naive and exponential smoothing models.
-
-**Key Considerations:** Accounting for synthetic temporal artifacts, claim lag, and structural breaks in time-series claims data.
-
-### XGBoost & SHAP (Clinical Risk Stratification & Explainability)
-
-**Status:** Planned — Dossier in development.
-
-**Objective:** Predict patient-level 30-day readmission probability at discharge to triage care coordinator follow-up queues; extract local SHAP values to identify primary risk drivers.
-
-**Exploratory Focus:** Managing severe class imbalance; feature engineering across chronic condition burdens and prior healthcare utilization; threshold tuning aligned with care coordinator capacity.
-
-**Key Considerations:** Guarding against lookahead leakage across multi-year claims; probability calibration (Brier score) for clinical credibility.
-
-### Agglomerative Clustering (Comorbidity Phenotyping):
-
-**Status:** Planned — Dossier in development.
-
-**Objective:** Identify recurring multimorbidity profiles among readmitted patients to inform specialized transitional care pathways and targeted patient education materials.
-
-**Exploratory Focus:** Evaluating distance metrics suitable for binary chronic condition flags (e.g., Jaccard vs. Gower); establishing clinically interpretable cluster boundaries.
-
-**Key Considerations:** High-dimensional sparsity; avoiding clusters driven purely by age rather than distinct clinical syndromic patterns.
-
-### Fairlearn (Algorithmic Governance & Disparity Audit):
-
-**Status:** Planned — Dossier in development.
-
-**Objective:** Audit the XGBoost risk model across demographic groups (e.g., age strata, sex proxies) to ensure predictive accuracy is equitable and post-discharge interventions are distributed fairly.
-
-**Exploratory Focus:** Quantifying False Negative Rate (FNR) disparities to prevent the systemic under-triage of vulnerable populations; evaluating post-processing threshold optimization.
-
-**Key Considerations:** Intersectional sample sizes within synthetic files; clinical trade-offs between demographic parity and predictive precision.
-
-### Tableau (Executive & Clinical Dashboards):
-
-**Status:** Planned.
-
-**Objective:** Translate pipeline outputs into an operational BI tool featuring an executive KPI view (spend trends, budget variance) and a clinical worklist view (daily triage queues with SHAP driver tags).
-
-**Exploratory Focus:** Designing intuitive visual hierarchies for non-technical clinical managers.
+| Method | Target | Clinical / Operational Objective | Primary Consideration |
+| :--- | :--- | :--- | :--- |
+| **3a - SARIMA** | Monthly Part A Readmission Spend | Budget allocation and care coordinator staffing sizing | Structural shifts and claims runout lag |
+| **3b1 - XGBoost + SHAP** | Patient-level 30-day readmission risk | Discharge triage and follow-up queue prioritization | Severe class imbalance; probability calibration |
+| **3b2 - Fairlearn** | Model performance parity across demographics | Preventing systematic under-triage of vulnerable demographics | False Negative Rate (FNR) parity vs. predictive precision |
+| **3c - Agglomerative Clustering** | Multimorbidity diagnostic profiles | Tailored transitional care pathways for clinical sub-cohorts | Jaccard/Gower distances over sparse binary flags |
+| **Tableau** | Executive KPIs & Clinical Worklists | Operationalizing triage lists for care management teams | Workflow-integrated UI design for clinical staff |
 
 ---
 
 ## Reproducibility & Quickstart
-### Prerequisites
 
-* Python 3.12+
-* PostgreSQL 16+
-* Conda
-
-### 1. Environment Setup
+### Environment Setup
+Clone Repository:
 ```text
-# Clone the repository
-git clone https://github.com/your-username/cascadia-readmissions-pipeline.git
-cd cascadia-readmissions-pipeline
-
-# Create and activate environment
-conda env create -f environment.yaml
-conda activate health_analytics
+git clone https://github.com/dataescapades/Cascadia-Healthcare-System
+cd Cascadia-Healthcare-System
 ```
 
-### 2. Configure Environment Variables
-Copy the example environment configuration and supply local PostgreSQL credentials:
+Build conda environment:
+```text
+conda env create -f environment.yaml
+conda activate health_analytics_env
+```
+
+### Database Configuration
+Create a .env file in the project root:
 ```text
 cp .env.example .env
 ```
 
-Update .env with your local database connection parameters:
+Configure local PostgreSQL connection parameters:
 ```text
 PGHOST=localhost
 PGPORT=5432
@@ -184,44 +145,25 @@ PGUSER=your_username
 PGPASSWORD=your_password
 ```
 
-### 3. Build Database & Cohort Marts
-Execute the database orchestrator CLI to initialize schemas, run migrations, and build the Gold analytical cohort:
+### Download Datasets
+Download CMS De-SynPUF Sample 1 inpatient claims and beneficiary summary files from the [CMS website](https://www.cms.gov/data-research/statistics-trends-and-reports/medicare-claims-synthetic-public-use-files/cms-2008-2010-data-entrepreneurs-synthetic-public-use-file-de-synpuf/de10-sample-1). Unzip and save the CSV files to data/raw/ and ensure the file names match those provided below.
 
+* **Inpatient Claims**: `DE1_0_2008_to_2010_Inpatient_Claims_Sample_1.csv`
+* **Beneficiary Summary 2008**: `DE1_0_2008_Beneficiary_Summary_File_Sample_1.csv`
+* **Beneficiary Summary 2009:** `DE1_0_2009_Beneficiary_Summary_File_Sample_1.csv`
+* **Beneficiary Summary 2010:** `DE1_0_2010_Beneficiary_Summary_File_Sample_1.csv`
+
+
+### Initialize Database & Generate Gold Cohort
+Run the stage 1 orchestrator to build schemas, run migrations, and assemble the analytic mart:
 ```text
 python scripts/1-build_db.py
 ```
 
 ---
 
-## Implementation Roadmap
-- [x] Phase 1: Database Architecture & ELT Lineage (COMPLETE)
-
-    - [x] Relational schema DDL and Silver Layer ingestion
-
-    - [x] Gold 30-day readmission cohort derivation mart
-
-    - [x] Exploratory data analysis and cohort validation reports
-
-- [ ] Phase 2: Feature Engineering (IN PROGRESS)
-
-    - [ ] Map ICD9 codes to chronic condition codes for comorbidity cluster analysis
-
-    - [ ] Finalize and engineer service line feature
-
-- [ ] Phase 3: Modeling (PLANNED)
-
-    - [ ] SARIMA - Financial Time-Series Forecasting
-
-    - [ ] XGBoost/SHAP - Patient Readmission Risk Forecasting
-
-    - [ ] Agglomerative Clustering - Comorbidity Analysis
-
-- [ ] Phase 4: Fairlearn - XGBoost Fairness Audit (PLANNED)
-
-    - [ ] Fairlearn demographic parity and False Negative Rate disparity audit
-
-- [ ] Phase 5: Operational Delivery & Visualization (PLANNED)
-
-    - [ ] Tableau executive KPI and clinical care coordinator dashboards
-
-    - [ ] End-to-end pipeline execution CLI (scripts/run_pipeline.py)
+## Data Attribution & Governance
+This project utilizes the CMS 2008–2010 Data Entrepreneurs’ Synthetic Public Use Files (DE-SynPUF), accessed under the [CMS Public Use File Disclaimer and User Agreement](https://www.cms.gov/files/document/pufdisclaimerpdf). In accordance with CMS terms:
+* **No Re-Identification or Linkage:** Users agree not to attempt to identify any individual, provider, or establishment, nor link these data to external person-level records.
+* **Disclaimer:** Findings and methodologies presented here are solely those of the author and do not reflect the endorsement or official views of CMS or HHS.
+* **Code & Pipeline:** Open-source software released under the [MIT License](LICENSE).
