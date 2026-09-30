@@ -270,7 +270,7 @@ SELECT
         ELSE NULL
     END                                                     AS race,
     s.state_abbr                                            AS state_abbr,
-    s.ssa_state_code                                        AS ssa_state_code,
+    LPAD(TRIM(s.ssa_state_code), 2, '0')                    AS ssa_state_code,
     LPAD(TRIM(u.bene_county_cd), 3, '0')                    AS ssa_county_code,
     CASE UPPER(TRIM(u.bene_esrd_ind))
         WHEN 'Y' THEN 1
