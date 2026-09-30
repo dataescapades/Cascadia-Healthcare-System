@@ -201,7 +201,8 @@ cohort_with_baseline AS (
         
         -- Dynamic Geographic & Coverage Attributes from Current Coverage Year
         demo_yr.state_abbr                                                      AS state_abbr,
-        demo_yr.county_code                                                     AS county_code,
+        demo_yr.ssa_state_code                                                  AS ssa_state_code,
+        demo_yr.ssa_county_code                                                 AS ssa_county_code,
         
         -- CCW Chronic Condition Flags Strictly from T-1 Lookback
         hist.has_alzheimers                                                     AS has_alzheimers,
