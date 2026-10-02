@@ -151,8 +151,8 @@ consolidated_episodes AS (
 episodes_with_outcomes AS (
     SELECT 
         ce.*,
-        MD5(ce.desynpuf_id || ce.admission_date::TEXT || ce.episode_id::TEXT)   AS encounter_id,
-        EXTRACT(YEAR FROM ce.admission_date)::SMALLINT                          AS admit_year,
+        MD5(ce.desynpuf_id || ce.discharge_date::TEXT || ce.episode_id::TEXT)   AS encounter_id,
+        EXTRACT(YEAR FROM ce.discharge_date)::SMALLINT                          AS discharge_year,
         (ce.admission_date - LAG(ce.discharge_date) OVER (
             PARTITION BY ce.desynpuf_id 
             ORDER BY ce.admission_date))::INTEGER                               AS days_since_prior_discharge,
@@ -184,7 +184,7 @@ cohort_with_baseline AS (
         e.admission_date,
         e.discharge_date,
         e.length_of_stay_days,
-        e.admit_year,
+        e.discharge_year,
         e.admitting_icd9_code,
         e.all_icd9_diagnosis_codes,
         e.procedure_icd9_codes,
@@ -230,10 +230,10 @@ cohort_with_baseline AS (
         ON e.desynpuf_id = bene.desynpuf_id
     LEFT JOIN cascadia_lake.dim_beneficiary_annual demo_yr
         ON e.desynpuf_id = demo_yr.desynpuf_id 
-        AND demo_yr.coverage_year = e.admit_year
+        AND demo_yr.coverage_year = e.discharge_year
     LEFT JOIN cascadia_lake.dim_beneficiary_annual hist
         ON e.desynpuf_id = hist.desynpuf_id 
-        AND hist.coverage_year = (e.admit_year - 1)
+        AND hist.coverage_year = (e.discharge_year - 1)
     WHERE bene.death_date IS NULL OR bene.death_date > e.discharge_date)
 SELECT * FROM cohort_with_baseline;
 
