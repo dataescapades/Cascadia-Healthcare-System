@@ -1,5 +1,4 @@
-# Methodology
-## Database
+# Methodology: Database
 
 ## Overview
 This file documents steps and decisions made in the .sql scripts, from database creation through final analytics tables used for Python imports.
@@ -68,7 +67,10 @@ One of the key factors being analyzed is readmissions. To determine if a patient
 - **Episodes** - New episodes were defined as non-overlapping claims with admission at least one day after discharge. An episode ID was assigned to each record by partitioning by patient and ordering by admission, discharge, and claim_id. A running max was created on the discharge date and a binary new episode flag was created by comparing the admission date and max prior discharge date. A running sum of the binary new episode flag assigned an episode ID to each record, only increasing when the next admission was at least 1 day after the previous max prior discharge. The episodes were then consolidated. MIN/MAX was used for admission/discharge dates. Dx and procedure codes were aggregated into arrays, removing nulls and duplicates. Financial data was summed, consolidating the claim payment amount, the beneficiary payment amount, and the total cost of the stay.
 
 #### Temporal Feature Engineering
-With the claims consolidated by stay, a unique encounter ID was created. Admission year and month were extracted into separate columns and days since previous admission and days to next admission were engineered for lookahead and lookback analyses.
+With the claims consolidated by stay, a unique encounter ID was created. Discharge year was extracted into a separate column and days since previous admission and days to next admission were engineered for lookahead and lookback analyses.
 
 #### Beneficiary CTE
 To facilitate creation of a field calculating days to death, a CTE with beneficiary features that should generally be static was created.
+
+#### Note on temporal update
+Originally, the beneficiary table was joined to claims on admission year. This was later changed to discharge year. This better aligns with analysis on information available at discharge and eliminates null state/county values for 216 admissions in 2007.
