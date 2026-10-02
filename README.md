@@ -58,11 +58,12 @@ Administrative claims data present structural challenges that compromise predict
 
 ## Data Realities & Analytical Boundaries
 
-Administrative claims data differ fundamentally from electronic health records (EHR). While this pipeline models post-discharge triage and enterprise spend, several structural constraints shape the analytical design:
+Administrative claims data differ fundamentally from hospital Electronic Health Records (EHR). While this pipeline models post-discharge triage risk and enterprise utilization, several structural constraints shape the analytical architecture:
 
-* **Claims vs. Bedside Clinical EHR:** True inpatient bedside triage relies on rich, real-time EHR data (e.g., vital sign trajectories, lab panels, nursing acuity flowsheets) that do not exist in claims files. In their absence, this project uses secondary ICD-9 diagnostic codes and chronic condition flags as proxy risk indicators.
-* **Temporal Lag & Chronic Baselines:** Administrative claims are subject to adjudication runout and billing lag. To model a patient's pre-admission baseline without contemporaneous leakage, the pipeline joins Chronic Condition Warehouse (CCW) flags strictly from the prior calendar year ($Y-1$). This trades immediate visibility for strict temporal hygiene.
-* **Synthetic Artifacts (DE-SynPUF):** To protect beneficiary privacy, CMS introduces intentional perturbation and synthetic noise into DE-SynPUF. While encounter structures and financial totals mirror realistic distributions, clinical associations are synthetic and intended solely for pipeline prototyping and software evaluation.
+* **Open-Source Reproducibility vs. Credentialed EHR:** To ensure a fully public, reproducible pipeline free of HIPAA restrictions or credentialed Data Use Agreements (e.g., PhysioNet / MIMIC-IV), this project utilizes the CMS 2008–2010 DE-SynPUF dataset.
+* **Claims vs. Bedside Clinical EHR:** True inpatient bedside triage relies on rich, real-time EHR data (vital sign trajectories, continuous lab panels, bedside nursing acuity flowsheets) that do not exist in administrative billing files. To emulate an EHR Active Problem List at the moment of discharge, the pipeline constructs a composite comorbidity baseline by combining historical Chronic Conditions Data Warehouse (CCW) flags with secondary ICD-9 diagnostic codes documented during the index encounter.
+* **Temporal Hygiene & Operational Availability:** Administrative claims are subject to adjudication runout and billing lag. To model discharge decision support under realistic temporal constraints without contemporaneous leakage, the pipeline joins prior-year CCW baseline summaries ($T-1$) anchored to the discharge year. This assumes finalized annual summaries are accessible at the start of the discharge calendar year, enforcing strict temporal hygiene while avoiding forward leakage.
+* **Synthetic Artifacts (DE-SynPUF):** To protect beneficiary privacy, CMS introduces intentional perturbation and synthetic noise into DE-SynPUF. While longitudinal encounter structures, multi-segment claim stitching, and financial totals mirror realistic payer distributions, specific clinical correlations are synthetic and intended strictly for data engineering prototyping and methodology demonstration.
 
 ---
 ## Technical Architecture & Pipeline Organization
