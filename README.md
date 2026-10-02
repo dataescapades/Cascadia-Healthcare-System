@@ -154,6 +154,14 @@ Download CMS De-SynPUF Sample 1 inpatient claims and beneficiary summary files f
 * **Beneficiary Summary 2009:** `DE1_0_2009_Beneficiary_Summary_File_Sample_1.csv`
 * **Beneficiary Summary 2010:** `DE1_0_2010_Beneficiary_Summary_File_Sample_1.csv`
 
+Download the FIPS, SAIPE, and RUCC Urban/Rural datasets and ensure the file names match those provided below.
+
+| Dataset | Description | File Name | Website Link |
+| :--- | :--- | :--- | :--- |
+| NBER FIPS Crosswalk | 2011 CSV | ssa_fips_state_county2011.csv | [FIPS](https://www.nber.org/research/data/ssa-federal-information-processing-series-fips-state-and-county-crosswalk) |
+| SAIPE | 2010 US and All States and Counties | est10all.xls | [SAIPE](https://www.census.gov/data/datasets/2010/demo/saipe/2010-state-and-county.html) |
+| RUCC | 2013 Urban/Rural | ruralurbancodes2013.xls | [RUCC](https://www.ers.usda.gov/data-products/rural-urban-continuum-codes) |
+
 
 ### Initialize Database & Generate Gold Cohort
 Run the stage 1 orchestrator to build schemas, run migrations, and assemble the analytic mart:
@@ -168,3 +176,6 @@ This project utilizes the CMS 2008–2010 Data Entrepreneurs’ Synthetic Public
 * **No Re-Identification or Linkage:** Users agree not to attempt to identify any individual, provider, or establishment, nor link these data to external person-level records.
 * **Disclaimer:** Findings and methodologies presented here are solely those of the author and do not reflect the endorsement or official views of CMS or HHS.
 * **Code & Pipeline:** Open-source software released under the [MIT License](LICENSE).
+
+### Supplementary Public Data
+Area-level socioeconomic and geographic features are derived from public, aggregate datasets published by the **National Bureau of Economic Research (NBER)**, the **U.S. Census Bureau (SAIPE)**, and the **USDA Economic Research Service (RUCC)**. These files contain strictly county-level summaries and no individual-level records or protected health information (PHI). Links to the websites for downloads and file specifications are documented in the **Download Datasets** section above.
